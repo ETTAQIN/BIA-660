@@ -146,8 +146,10 @@ def process_relation_triplet(triplet):
     for t in doc:
         if t.pos_ == 'VERB' and t.head == t:
             root = t
-        # elif t.pos_ == 'NOUN'
-
+            break
+        elif t.pos_ == 'NOUN' and t.head == t:
+            root = t
+            break
     # also, if only one sentence
     # root = doc[:].root
 
@@ -165,19 +167,36 @@ def process_relation_triplet(triplet):
         print(root.text)
     '''
     # Process (PERSON, likes, PERSON) relations
-    if root.lemma_ == 'like':
-        if triplet.subject in [e.text for e in doc.ents if e.label_ == 'PERSON'] and triplet.object in [e.text for e in doc.ents if e.label_ == 'PERSON']:
+    if root.lemma_ == 'like' and root.text != 'like':
+        if triplet.subject in [e.text for e in doc.ents if e.label_ == 'PERSON' or e.label_ == 'ORG'] and triplet.object in [e.text for e in doc.ents if e.label_ == 'PERSON' or e.label_ == 'ORG']:
             s = add_person(triplet.subject)
             o = add_person(triplet.object)
             if o not in s.likes:  # eliminate duplicate names
                 s.likes.append(o)
+
+    # Process (PERSON and PERSON, are, friends) relations
+    if root.lemma_ == 'be':
+        if triplet.object == 'friends':
+            temp1 = triplet.subject.split(' ')
+            temp2 = []
+            for a in temp1:
+                if a in [e.text for e in doc.ents if e.label_ == 'PERSON' or e.label_ == 'ORG']:
+                    s = add_person(a)
+                    temp2.append(s)
+            for b in temp2:
+                for c in temp2:
+                    if b is not c:
+                        if b not in c.likes:  # eliminate duplicate names
+                            c.likes.append(b)
+                        if c not in b.likes:
+                            b.likes.append(c)
 
     if root.lemma_ == 'be' and triplet.object.startswith('friends with'):
         fw_doc = nlp(unicode(triplet.object))
         with_token = [t for t in fw_doc if t.text == 'with'][0]
         fw_who = [t for t in with_token.children if t.dep_ == 'pobj'][0].text
         # fw_who = [e for e in fw_doc.ents if e.label_ == 'PERSON'][0].text
-        if triplet.subject in [e.text for e in doc.ents if e.label_ == 'PERSON'] and fw_who in [e.text for e in doc.ents if e.label_ == 'PERSON']:
+        if triplet.subject in [e.text for e in doc.ents if e.label_ == 'PERSON' or e.label_ == 'ORG'] and fw_who in [e.text for e in doc.ents if e.label_ == 'PERSON' or e.label_ == 'ORG']:
             s = add_person(triplet.subject)
             o = add_person(fw_who)
             if o not in s.likes:  # eliminate duplicate names
@@ -186,8 +205,8 @@ def process_relation_triplet(triplet):
                 o.likes.append(s)
 
     # Process (PERSON, dislikes, PERSON) relations
-    if root.lemma_ == 'like' and root.text == 'like':
-        if triplet.subject in [e.text for e in doc.ents if e.label_ == 'PERSON'] and triplet.object in [e.text for e in doc.ents if e.label_ == 'PERSON']:
+    if root.lemma_ == 'like':
+        if triplet.subject in [e.text for e in doc.ents if e.label_ == 'PERSON' or e.label_ == 'ORG'] and triplet.object in [e.text for e in doc.ents if e.label_ == 'PERSON' or e.label_ == 'ORG']:
             s = add_person(triplet.subject)
             o = add_person(triplet.object)
             s.dislikes.append(o)
@@ -223,7 +242,7 @@ def process_relation_triplet(triplet):
             subj_start = sentence.find(triplet.subject)
             subj_doc = doc.char_span(subj_start, subj_start + len(triplet.subject))
 
-            s_people = [token.text for token in subj_doc if token.ent_type_ == 'PERSON']
+            s_people = [token.text for token in subj_doc if token.ent_type_ == 'PERSON' or token.ent_type_ == 'ORG']
             assert len(s_people) == 1
             s_person = select_person(s_people[0])
 
@@ -239,37 +258,11 @@ def process_relation_triplet(triplet):
     if root.lemma_ == 'take' or root.lemma_ == 'fly' or root.lemma_ == 'go' or root.lemma_ == 'leave':
         trip = None
         for b in [e.text for e in doc.ents if e.label_ == 'GPE']:
-            print(1)
-            if [e.text for e in doc.ents if e.label_ == 'DATE'] is []:
-                print(5)
-                trip = add_trip(b,'sometime')
-                break
-            for c in [e.text for e in doc.ents if e.label_ == 'DATE']:
+            for c in [d.text for d in doc.ents if d.label_ == 'DATE']:
                 trip = add_trip(b, c)
-                print(2)
-        for d in [e.text for e in doc.ents if e.label_ == 'DATE']:
-            print(3)
-            if [e.text for e in doc.ents if e.label_ == 'GPE'] is []:
-                print(6)
-                trip = add_trip('temp', d)
-                break
-            for f in [e.text for e in doc.ents if e.label_ == 'GPE']:
-                trip = add_trip(f, d)
-                print(4)
-        for a in [e.text for e in doc.ents if e.label_ == 'PERSON']:
+        for a in [f.text for f in doc.ents if f.label_ == 'PERSON' or f.label_ == 'ORG']:
             a = add_person(a)
-            if a.travels == []:
-                a.travels.append(trip)
-            elif a.travels != []:
-                print(a.travels[-1].departs_on)
-                print(trip)
-            elif a.travels[-1].departs_on != trip.departs_on and a.travels[-1].departs_to != trip.departs_to:
-                a.travels.append(trip)
-            else:
-                if a.travels[-1].departs_on == 'sometime':
-                    a.travels[-1].departs_on = d
-                else:
-                    a.travels[-1].departs_to = b
+            a.travels.append(trip)
 
 
 def preprocess_question(question):
@@ -301,65 +294,137 @@ def process_data_from_input_file():
     cl = ClausIE.get_instance()
     triples = cl.extract_triples(sents)
     for t in triples:
-        print(t)
+        # print(t)
         process_relation_triplet(t)
 
 
 def answer_question(question_string):
-    # your code here
     answers = []
     cl = ClausIE.get_instance()
-    q_trip = cl.extract_triples([preprocess_question(question_string)])[0]
-    print(q_trip)
-    sentence = q_trip.subject + ' ' + q_trip.predicate + ' ' + q_trip.object
-    doc = nlp(unicode(sentence))
+    try:
+        q_trip = cl.extract_triples([preprocess_question(question_string)])[0]
+        sentence = q_trip.subject + ' ' + q_trip.predicate + ' ' + q_trip.object
+        doc = nlp(unicode(sentence))
 
+        for t in doc:
+            if t.pos_ == 'VERB' and t.head == t:
+                root = t
 
-    # (WHO, has, PET)
-    if q_trip.subject.lower() == 'who' and q_trip.object == 'dog' or q_trip.object == 'cat':
-        answer = '{} has a {} named {}.'
+        #print(q_trip)
+        #print(root.lemma_)
+        # (WHO, has, PET)
+        if q_trip.subject.lower() == 'who' and q_trip.object == 'dog' or q_trip.object == 'cat':
+            answer = '{} has a {} named {}.'
 
-        for person in persons:
-            pet = get_persons_pet(person.name)
-            if q_trip.object == 'dog' and pet and pet.type == 'dog':
-                answers.append(answer.format(person.name, 'dog', pet.name))
-            elif q_trip.object == 'cat' and pet and pet.type == 'cat':
-                answers.append(answer.format(person.name, 'cat', pet.name))
-    for answer in answers:
-        print (answer)
+            for person in persons:
+                pet = get_persons_pet(person.name)
+                if q_trip.object == 'dog' and pet and pet.type == 'dog':
+                    answers.append(answer.format(person.name, 'dog', pet.name))
+                elif q_trip.object == 'cat' and pet and pet.type == 'cat':
+                    answers.append(answer.format(person.name, 'cat', pet.name))
+        for answer in answers:
+            print (answer)
 
-    # (Who, go, SOMEWHERE)
-    #if q_trip.subject.lower() == 'who' and  in [e.text for e in doc.ents if e.label_ == 'GPE']:
+        # (Who, go, SOMEWHERE)
+        if q_trip.subject.lower() == 'who' and (root.lemma_ == 'take' or root.lemma_ == 'fly' or root.lemma_ == 'go' or root.lemma_ == 'leave'):
+            answer = '{} goes to {}.'
+            for a in [e.text for e in doc.ents if e.label_ == 'GPE']:
+                for person in persons:
+                    for b in person.travels:
+                        if b != None:
+                            if b.departs_to == a:
+                                answers.append(answer.format(person.name, a))
+            if answers == []:
+                print("No one is going to", a)
+            else:
+                for answer in answers:
+                    print(answer)
 
-    # (Does, PERSON, like, PERSON)
-    if not has_question_word(question_string):
-        temp = q_trip.subject.split(' ')
-        flag = False
-        for a in temp:
-            if a in [e.text for e in doc.ents if e.label_ == 'PERSON']:
-                if select_person(q_trip.object) in select_person(a).likes:
-                    print("Yes")
-                    flag = True
-        if flag == False:
-            print("No")
+        # (Does, PERSON, like, PERSON)
+        if not has_question_word(question_string):
+            temp = q_trip.subject.split(' ')
+            flag = False
+            for a in temp:
+                if a in [e.text for e in doc.ents if e.label_ == 'PERSON']:
+                    try:
+                        select_person(a).likes
+                    except AttributeError:
+                        print(q_trip.object, "is not a person in the database.")
+                        break
+                    if select_person(q_trip.object) in select_person(a).likes:
+                        print("Yes.")
+                        flag = True
+                    if flag == False:
+                        print("No.")
 
-    # (When is <person> [going to|flying to|traveling to] <place>)
-    if q_trip.object.lower().endswith('when'):
-        a = select_person(q_trip.subject)
-        if a != None:
-            for b in a.travels:
-                print(a.travels[0].departs_to,1)
-                print(a.travels[0].departs_on,1)
-                for c in [e.text for e in doc.ents if e.label_ == 'GPE']:
-                    if b.departs_to == c:
-                        print(b.departs_on)
-        else:
-            print("I don't know the answer for this question. Please check your input!")
+        # (When is <person> [going to|flying to|traveling to] <place>)
+        if q_trip.object.lower().endswith('when'):
+            flag = False
+            a = select_person(q_trip.subject)
+            if a != None:
+                for b in a.travels:
+                    for c in [e.text for e in doc.ents if e.label_ == 'GPE']:
+                        if b != None:
+                            if b.departs_to == c:
+                                print(b.departs_on)
+                                flag = True
+                        else:
+                            print(q_trip.subject, "is not going to anywhere.")
+            else:
+                print(q_trip.subject, "is not in the database. Try another person name.")
+                flag = True
+            try:
+                c
+            except NameError:
+                print("It is not even a place!!")
+                flag = True
+            if flag == False:
+                print(q_trip.subject,"is not going to", c)
+
+        # (Who likes <person>?)
+        if q_trip.subject.lower() == 'who' and root.lemma_ == 'like':
+            answer = '{} like(s) {}.'
+            people = []
+            temp = ''
+            for person in persons:
+                for like in person.likes:
+                    if like.name == q_trip.object:
+                        people.append(person)
+            for a in people:
+                temp += a.name
+                temp += ', '
+            temp = temp[:-2]
+            if temp == '':
+                print(answer.format('No one',q_trip.object))
+            else:
+                print(answer.format(temp,q_trip.object))
+
+        # (Who does <person> like?)
+        if q_trip.object.lower() == 'who':
+            answer = '{} likes {}.'
+            temp = ''
+            try:
+                for a in select_person(q_trip.subject).likes:
+                    temp += a.name
+                    temp += ', '
+                temp = temp[:-2]
+                print(answer.format(q_trip.subject, temp))
+            except AttributeError:
+                print(q_trip.subject, "is not a person in the database.")
+    except ValueError:
+        answer = 'The name of {}\'s {} is {}.'
+        ques = question_string.split(' ')
+        petType = ques[-1][:-1]
+        personName = ques[-2][:-2]
+        try:
+            for a in select_person(personName).has:
+                if a.type == petType:
+                    print(answer.format(personName, petType, a.name))
+        except AttributeError:
+            print(personName, "is not a person in the database.")
 
 def main():
     process_data_from_input_file()
-    print(select_person('Chris').travels[0].departs_to)
-    print(select_person('Chris').travels[0].departs_on)
     question = ' '
     flag = True
     while(flag == True):

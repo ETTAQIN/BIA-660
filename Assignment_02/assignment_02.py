@@ -9,6 +9,7 @@ import time
 import random
 import bs4
 import sys
+import http.client, urllib.request, urllib.parse, urllib.error, base64
 import selenium
 
 '''
@@ -412,3 +413,21 @@ driver.close()
 except selenium.common.exceptions.NoSuchElementException as e:
     print('Error', e)
 '''
+
+
+headers = {
+    # Request headers
+    'Ocp-Apim-Subscription-Key': '0bf50d984ec545a6a5374c0a7338ef68',
+}
+
+params = urllib.parse.urlencode({'format':'JSON','season':'2016'})
+
+try:
+    conn = http.client.HTTPSConnection('api.fantasydata.net')
+    conn.request("GET", "/v3/mlb/scores/JSON/Games/2016", "{body}", headers)
+    response = conn.getresponse()
+    data = response.read()
+    print(data)
+    conn.close()
+except Exception as e:
+    print("[Errno {0}] {1}".format(e.errno, e.strerror))

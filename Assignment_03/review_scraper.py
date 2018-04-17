@@ -29,24 +29,24 @@ verified_reviews = driver.find_element_by_id('reviewer-type-dropdown_1')
 verified_reviews.click()
 
 
-
-
 """
 Reviews Scrape
 Needed Information: 
-review_id, customer_name, review_date, review_headline, product_pattern, review_stars, and review_text
+customer name, review headline, review stars, review date, product pattern, review comment and review text
 """
-
-
 
 
 # Set a dateset to store the data
 data_set = []
+# Set a flag for the while loop
 flag = True
+
 def scrape_reviews():
     global flag
+    # locate the sorted reviews (exclude the recommend reviews on the top)
     review_page = driver.find_element_by_id('cm_cr-review_list')
-    
+
+    # Find the list for each part of the reviews on this page
     customer_names = review_page.find_elements_by_css_selector('.a-size-base.a-link-normal.author')
     headlines = review_page.find_elements_by_css_selector('.a-size-base.a-link-normal.review-title.a-color-base.a-text-bold')
     ratings = review_page.find_elements_by_xpath(".//a[contains(@title, 'out of 5 stars')]")
@@ -55,7 +55,7 @@ def scrape_reviews():
     comments = review_page.find_elements_by_xpath("//*[contains(text(), 'Was this review helpful to you?')]")
     text_reviews = review_page.find_elements_by_css_selector(".a-size-base.review-text")
 
-    # Then, find the content of each part
+    # Then, find the needed information of each part
     customer_name = [customer_name.text for customer_name in customer_names]
     headline = [headline.text for headline in headlines]
     rating = [rating.get_attribute('title') for rating in ratings]
@@ -65,6 +65,7 @@ def scrape_reviews():
     comment = [comment.text for comment in comments]
     text_review = [text_review.text for text_review in text_reviews]
 
+    # Set the date requirement
     for i in range(len(year)):
         year[i] = year[i].split(', ')[1]
         if int(year[i]) > 2016:

@@ -74,7 +74,7 @@ def scrape_reviews():
         else:
             flag = False
             df = pd.DataFrame(data_set, columns=['CustomerName', 'Headline', 'Rating', 'Date', 'Pattern', 'Comment', 'TextRivew'])
-            df.to_csv('firstpage.csv', index=False, header=False)
+            df.to_csv('reviews.csv', index=False, header=False)
             data = df.to_json(orient='records')
             with open('reviews.json', 'w') as outfile:
                 json.dump(data, outfile, sort_keys=True)
